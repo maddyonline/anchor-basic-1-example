@@ -39,8 +39,8 @@ pub mod xbasic_1 {
         // Print the check.
         let check = &mut ctx.accounts.check;
         check.amount = amount;
-        check.from = *ctx.accounts.from.to_account_info().key;
-        check.to = *ctx.accounts.to.to_account_info().key;
+        // check.from = *ctx.accounts.from.to_account_info().key;
+        // check.to = *ctx.accounts.to.to_account_info().key;
         check.vault = *ctx.accounts.vault.to_account_info().key;
         check.nonce = nonce;
         check.memo = memo;
@@ -106,7 +106,7 @@ impl<'info> CreateCheck<'info> {
 
 #[derive(Accounts)]
 pub struct CashCheck<'info> {
-    #[account(mut, has_one = vault, has_one = to)]
+    #[account(mut, has_one = vault)]
     check: Account<'info, Check>,
     #[account(mut)]
     vault: AccountInfo<'info>,
