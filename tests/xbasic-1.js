@@ -43,7 +43,7 @@ describe("basic-1", () => {
     );
     checkSigner = _checkSigner;
 
-    await program.rpc.createCheck(new anchor.BN(100), "Hello world", nonce, {
+    await program.rpc.createCheck(new anchor.BN(100), "gm", nonce, {
       accounts: {
         check: check.publicKey,
         vault: vault.publicKey,

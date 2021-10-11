@@ -26,6 +26,14 @@ pub mod xbasic_1 {
         memo: Option<String>,
         nonce: u8,
     ) -> Result<()> {
+        match &memo {
+            None => {},
+            Some(x) => {
+                if &x != &"gm" {
+                    return Err(ErrorCode::InvalidMessage.into());
+                }
+            }
+        }
         // Transfer funds to the check.
         let cpi_accounts = Transfer {
             from: ctx.accounts.from.to_account_info().clone(),
@@ -141,6 +149,8 @@ pub enum ErrorCode {
     InvalidCheckSigner,
     #[msg("The given check has already been burned.")]
     AlreadyBurned,
+    #[msg("Sorry that doesn't look like a GM message.")]
+    InvalidMessage,
 }
 
 fn not_burned(check: &Check) -> Result<()> {
