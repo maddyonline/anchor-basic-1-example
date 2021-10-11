@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::{self, TokenAccount, Transfer};
 
 declare_id!("2j4NMzDYQPLpS2HKLR7EnzPt5MXBt3fT9PeWTvUAznQp");
 
@@ -17,6 +18,98 @@ pub mod xbasic_1 {
         my_account.data = data;
         Ok(())
     }
+
+    #[access_control(CreateCheck::accounts(&ctx, nonce))]
+    pub fn create_check(
+        ctx: Context<CreateCheck>,
+        amount: u64,
+        memo: Option<String>,
+        nonce: u8,
+    ) -> Result<()> {
+        // Transfer funds to the check.
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.from.to_account_info().clone(),
+            to: ctx.accounts.vault.to_account_info().clone(),
+            authority: ctx.accounts.owner.clone(),
+        };
+        let cpi_program = ctx.accounts.token_program.clone();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)?;
+
+        // Print the check.
+        let check = &mut ctx.accounts.check;
+        check.amount = amount;
+        check.from = *ctx.accounts.from.to_account_info().key;
+        check.to = *ctx.accounts.to.to_account_info().key;
+        check.vault = *ctx.accounts.vault.to_account_info().key;
+        check.nonce = nonce;
+        check.memo = memo;
+
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CreateCheck<'info> {
+    // Check being created.
+    #[account(zero)]
+    check: Account<'info, Check>,
+    // Check's token vault.
+    #[account(mut, constraint = &vault.owner == check_signer.key)]
+    vault: Account<'info, TokenAccount>,
+    // Program derived address for the check.
+    check_signer: AccountInfo<'info>,
+    // Token account the check is made from.
+    #[account(mut, has_one = owner)]
+    from: Account<'info, TokenAccount>,
+    // Token account the check is made to.
+    #[account(constraint = from.mint == to.mint)]
+    to: Account<'info, TokenAccount>,
+    // Owner of the `from` token account.
+    owner: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
+}
+
+impl<'info> CreateCheck<'info> {
+    pub fn accounts(ctx: &Context<CreateCheck>, nonce: u8) -> Result<()> {
+        let signer = Pubkey::create_program_address(
+            &[ctx.accounts.check.to_account_info().key.as_ref(), &[nonce]],
+            ctx.program_id,
+        )
+        .map_err(|_| ErrorCode::InvalidCheckNonce)?;
+        if &signer != ctx.accounts.check_signer.to_account_info().key {
+            return Err(ErrorCode::InvalidCheckSigner.into());
+        }
+        Ok(())
+    }
+}
+
+#[account]
+pub struct Check {
+    from: Pubkey,
+    to: Pubkey,
+    amount: u64,
+    memo: Option<String>,
+    vault: Pubkey,
+    nonce: u8,
+    burned: bool,
+}
+
+#[error]
+pub enum ErrorCode {
+    #[msg("The given nonce does not create a valid program derived address.")]
+    InvalidCheckNonce,
+    #[msg("The derived check signer does not match that which was given.")]
+    InvalidCheckSigner,
+    #[msg("The given check has already been burned.")]
+    AlreadyBurned,
+}
+
+fn not_burned(check: &Check) -> Result<()> {
+    if check.burned {
+        return Err(ErrorCode::AlreadyBurned.into());
+    }
+    Ok(())
 }
 
 #[derive(Accounts)]
