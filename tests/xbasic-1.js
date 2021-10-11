@@ -67,6 +67,36 @@ describe("basic-1", () => {
     });
   });
 
+
+  it("Cashes a check", async () => {
+    const program = anchor.workspace.Xbasic1;
+    await program.rpc.cashCheck({
+      accounts: {
+        check: check.publicKey,
+        vault: vault.publicKey,
+        checkSigner: checkSigner,
+        to: receiver,
+        owner: program.provider.wallet.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      },
+    });
+
+    const checkAccount = await program.account.check.fetch(check.publicKey);
+    assert.ok(checkAccount.burned === true);
+
+    let vaultAccount = await serumCmn.getTokenAccount(
+      program.provider,
+      checkAccount.vault
+    );
+    assert.ok(vaultAccount.amount.eq(new anchor.BN(0)));
+
+    let receiverAccount = await serumCmn.getTokenAccount(
+      program.provider,
+      receiver
+    );
+    assert.ok(receiverAccount.amount.eq(new anchor.BN(100)));
+  });
+
   it("Creates and initializes an account in a single atomic transaction (simplified)", async () => {
     // #region code-simplified
     // The program to execute.

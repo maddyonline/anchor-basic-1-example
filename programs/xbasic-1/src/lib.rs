@@ -47,6 +47,26 @@ pub mod xbasic_1 {
 
         Ok(())
     }
+
+    #[access_control(not_burned(&ctx.accounts.check))]
+    pub fn cash_check(ctx: Context<CashCheck>) -> Result<()> {
+        let seeds = &[
+            ctx.accounts.check.to_account_info().key.as_ref(),
+            &[ctx.accounts.check.nonce],
+        ];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.vault.to_account_info().clone(),
+            to: ctx.accounts.to.to_account_info().clone(),
+            authority: ctx.accounts.check_signer.clone(),
+        };
+        let cpi_program = ctx.accounts.token_program.clone();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, ctx.accounts.check.amount)?;
+        // Burn the check for one time use.
+        ctx.accounts.check.burned = true;
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -82,6 +102,24 @@ impl<'info> CreateCheck<'info> {
         }
         Ok(())
     }
+}
+
+#[derive(Accounts)]
+pub struct CashCheck<'info> {
+    #[account(mut, has_one = vault, has_one = to)]
+    check: Account<'info, Check>,
+    #[account(mut)]
+    vault: AccountInfo<'info>,
+    #[account(
+        seeds = [check.to_account_info().key.as_ref()],
+        bump = check.nonce,
+    )]
+    check_signer: AccountInfo<'info>,
+    #[account(mut, has_one = owner)]
+    to: Account<'info, TokenAccount>,
+    #[account(signer)]
+    owner: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
 }
 
 #[account]
