@@ -7,6 +7,13 @@ declare_id!("2j4NMzDYQPLpS2HKLR7EnzPt5MXBt3fT9PeWTvUAznQp");
 pub mod xbasic_1 {
     use super::*;
 
+    pub fn introduce_yourself(ctx: Context<Introduction>, visitor_bump: u8) -> ProgramResult {
+        msg!("Nice to meet you {}.", ctx.accounts.visitor.key);
+        ctx.accounts.visitor_state.visit_count = 1;
+        ctx.accounts.visitor_state.bump = visitor_bump;
+        Ok(())
+    }
+
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> ProgramResult {
         let my_account = &mut ctx.accounts.my_account;
         my_account.data = data;
@@ -27,7 +34,7 @@ pub mod xbasic_1 {
         nonce: u8,
     ) -> Result<()> {
         match &memo {
-            None => {},
+            None => {}
             Some(x) => {
                 if &x != &"gm" {
                     return Err(ErrorCode::InvalidMessage.into());
@@ -178,4 +185,20 @@ pub struct Update<'info> {
 #[account]
 pub struct MyAccount {
     pub data: u64,
+}
+
+#[derive(Accounts)]
+#[instruction(visitor_bump: u8)]
+pub struct Introduction<'info> {
+    payer: Signer<'info>,
+    visitor: Signer<'info>,
+    #[account(init, seeds = [visitor.key.as_ref()], bump = visitor_bump, payer = payer, space = 8 + 8 + 1)]
+    visitor_state: Account<'info, VisitorState>,
+    system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct VisitorState {
+    visit_count: u64,
+    bump: u8,
 }

@@ -68,6 +68,35 @@ describe("basic-1", () => {
   });
 
 
+  let visitorState, visitorBump;
+  const visitor = anchor.web3.Keypair.generate();
+  before(async () => {
+    const program = anchor.workspace.Xbasic1;
+    [visitorState, visitorBump] = await anchor.web3.PublicKey.findProgramAddress(
+      [visitor.publicKey.toBuffer()],
+      program.programId
+    );
+  });
+
+  it("It works!", async () => {
+    const program = anchor.workspace.Xbasic1;
+    await program.rpc.introduceYourself(new anchor.BN(visitorBump),
+      {
+        accounts: {
+          payer: provider.wallet.payer.publicKey,
+          visitor: visitor.publicKey,
+          visitorState: visitorState,
+          systemProgram: anchor.web3.SystemProgram.programId
+        },
+        signers: [visitor]
+      }
+    );
+
+    let visitorStateAccount = await program.account.visitorState.fetch(visitorState);
+    assert.equal(1, visitorStateAccount.visitCount.toNumber())
+  });
+
+
   it("Cashes a check", async () => {
     const program = anchor.workspace.Xbasic1;
     await program.rpc.cashCheck({
