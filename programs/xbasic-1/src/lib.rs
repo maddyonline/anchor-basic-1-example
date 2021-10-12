@@ -14,6 +14,16 @@ pub mod xbasic_1 {
         Ok(())
     }
 
+    pub fn visit(ctx: Context<Visit>) -> ProgramResult {
+        ctx.accounts.visitor_state.visit_count += 1;
+        msg!(
+            "Welcome back {}, you've now visited {} times.",
+            ctx.accounts.visitor.key,
+            ctx.accounts.visitor_state.visit_count
+        );
+        Ok(())
+    }
+
     pub fn initialize(ctx: Context<Initialize>, data: u64) -> ProgramResult {
         let my_account = &mut ctx.accounts.my_account;
         my_account.data = data;
@@ -192,9 +202,16 @@ pub struct MyAccount {
 pub struct Introduction<'info> {
     payer: Signer<'info>,
     visitor: Signer<'info>,
-    #[account(init, seeds = [visitor.key.as_ref()], bump = visitor_bump, payer = payer, space = 8 + 8 + 1)]
+    #[account(init, seeds = [visitor.key.as_ref(), "1".as_ref()], bump = visitor_bump, payer = payer, space = 8 + 8 + 1)]
     visitor_state: Account<'info, VisitorState>,
     system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Visit<'info> {
+    visitor: Signer<'info>,
+    #[account(mut, seeds = [visitor.key.as_ref(), "1".as_ref()], bump = visitor_state.bump)]
+    visitor_state: Account<'info, VisitorState>,
 }
 
 #[account]

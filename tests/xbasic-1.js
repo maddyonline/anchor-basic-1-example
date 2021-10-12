@@ -73,7 +73,7 @@ describe("basic-1", () => {
   before(async () => {
     const program = anchor.workspace.Xbasic1;
     [visitorState, visitorBump] = await anchor.web3.PublicKey.findProgramAddress(
-      [visitor.publicKey.toBuffer()],
+      [visitor.publicKey.toBuffer(), "1"],
       program.programId
     );
   });
@@ -94,6 +94,27 @@ describe("basic-1", () => {
 
     let visitorStateAccount = await program.account.visitorState.fetch(visitorState);
     assert.equal(1, visitorStateAccount.visitCount.toNumber())
+
+    async function visit() {
+      await provider.connection.confirmTransaction(
+        await program.rpc.visit(
+          {
+            accounts: {
+              visitor: visitor.publicKey,
+              visitorState: visitorState
+            },
+            signers: [visitor]
+          }
+        ),
+        "finalized"
+      );
+    }
+
+    console.log("About to visit again, this takes a while for solana to finalize...");
+    await visit();
+    visitorStateAccount = await program.account.visitorState.fetch(visitorState);
+    assert.equal(2, visitorStateAccount.visitCount.toNumber());
+
   });
 
 
